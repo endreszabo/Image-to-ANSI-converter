@@ -104,7 +104,7 @@ else:
 		else:
 			destfile=open(imagefile+'.ansi','w')
 		if use_unicode is 'u':
-			y/=2
+			y=y/2+y%2
 		for h in range(y):
 			for w in range(x):
 				if use_unicode is 'u':
