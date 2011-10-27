@@ -1,12 +1,20 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-from sys import argv
+from sys import argv, stdout
 from math import pow
 import gd
 import argparse
 
 color_table = {
-	256: (
+	'irc': (
+		( 0xff, 0xff, 0xff ), ( 0, 0, 0 ), ( 0, 0, 0xaa ),
+		( 0, 0xaa, 0 ), ( 0xff, 0x55, 0x55 ), ( 0xaa, 0, 0 ),
+		( 0xaa, 0, 0xaa ), ( 0xaa, 0x55, 0 ), ( 0xff, 0xff, 0x55 ),
+		( 0x55, 0xff, 0x55 ), ( 0, 0xaa, 0xaa ), ( 0x55, 0xff, 0xff ),
+		( 0x55, 0x55, 0xff ), ( 0xff, 0x55, 0xff ), ( 0x55, 0x55, 0x55 ),
+		( 0xaa, 0xaa, 0xaa )
+	),
+	'256': (
 		( 0, 0, 0 ), ( 128, 0, 0 ), ( 0, 128, 0 ),
 		( 128, 128, 0 ), ( 0, 0, 128 ), ( 128, 0, 128 ),
 		( 0, 128, 128 ), ( 192, 192, 192 ), ( 128, 128, 128 ),
@@ -52,23 +60,13 @@ color_table = {
 		( 178, 178, 178 ), ( 188, 188, 188 ), ( 198, 198, 198 ), ( 208, 208, 208 ), ( 218, 218, 218 ), ( 228, 228, 228 ), 
 		( 238, 238, 238 )
 	),
-	16:	(
-		(0, 0, 0),
-		(128, 0, 0),
-		(0, 128, 0),
-		(128, 128, 0), 
-		(0, 0, 128), 
-		(128, 0, 128),
-		(0, 128, 128), 
-		(192, 192, 192), 
-		(128, 128, 128),
-		(255, 0, 0), 
-		(0, 255, 0), 
-		(255, 255, 0),
-		(0, 0, 255), 
-		(255, 0, 255), 
-		(0, 255, 255),
-		(255, 255, 255)
+	'16':	(
+		( 0, 0, 0) , ( 128, 0, 0 ), ( 0, 128, 0 ),
+		( 128, 128, 0 ), ( 0, 0, 128 ), ( 128, 0, 128 ),
+		( 0, 128, 128 ), ( 192, 192, 192 ), ( 128, 128, 128 ),
+		( 255, 0, 0 ), ( 0, 255, 0 ), ( 255, 255, 0 ),
+		( 0, 0, 255 ), ( 255, 0, 255 ), ( 0, 255, 255 ),
+		( 255, 255, 255 )
 	)
 }
 	
@@ -90,16 +88,21 @@ def colorMatch(color, table):
 	return best_match;
 
 if len(argv)<4:
-	print "usage: %s <16|256> <u|n> <imagefile> [imagefiles...]" % argv[0]
+	print "usage: %s <16|256|irc> <u|n> <imagefile> [imagefiles...]" % argv[0]
 else:
-	colors = int(argv[1])
+	colors=argv[1]
+	#if 'irc' not in colors:
+	#	colors = int(argv[1])
 	use_unicode = argv[2]
 	for imagefile in argv[3:]:
 		a=gd.image(imagefile)
 		(x,y)=a.size()
 		old_bottom_color=0
 		old_top_color=0
-		destfile=open(imagefile+'.ansi','w')
+		if 'irc' in colors:
+			destfile=stdout
+		else:
+			destfile=open(imagefile+'.ansi','w')
 		if use_unicode is 'u':
 			y/=2
 		for h in range(y):
@@ -108,7 +111,10 @@ else:
 					top_color=colorMatch(a.getPixel([w,h*2]),color_table[colors])
 					bottom_color=colorMatch(a.getPixel([w,h*2+1]),color_table[colors])
 					if (top_color is not old_top_color) or (bottom_color is not old_bottom_color):
-						destfile.write("\x1b[38;05;%dm\x1b[48;05;%dm▀" % (top_color, bottom_color))
+						if 'irc' in colors:
+							destfile.write("\x03%d,%d▀" % (top_color, bottom_color))
+						else:
+							destfile.write("\x1b[38;05;%dm\x1b[48;05;%dm▀" % (top_color, bottom_color))
 						old_top_color=top_color
 						old_bottom_color=bottom_color
 					else:
@@ -116,12 +122,19 @@ else:
 				else:
 					top_color=colorMatch(a.getPixel([w,h]),color_table[colors])
 					if top_color is not old_top_color:
-						destfile.write("\x1b[48;05;%dm  " % top_color)
+						if 'irc' in colors:
+							destfile.write("\x031,%d  " % top_color)
+						else:
+							destfile.write("\x1b[48;05;%dm  " % top_color)
 						old_top_color=top_color
 					else:
 						destfile.write("  ")
-			if use_unicode is 'u':
-				destfile.write("\x1b[0m\n\x1b[38;05;%dm\x1b[48;05;%dm" % (top_color, bottom_color))
+			if 'irc' not in colors:
+				if use_unicode is 'u':
+					destfile.write("\x1b[0m\n\x1b[38;05;%dm\x1b[48;05;%dm" % (top_color, bottom_color))
+				else:
+					destfile.write("\x1b[0m\n\x1b[48;05;%dm" % top_color)
 			else:
-				destfile.write("\x1b[0m\n\x1b[48;05;%dm" % top_color)
-		destfile.close()
+				destfile.write("\n")
+		if 'irc' not in colors:
+			destfile.close()
